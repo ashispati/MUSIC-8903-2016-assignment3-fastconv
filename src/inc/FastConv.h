@@ -52,7 +52,7 @@ public:
     
     /*! returns the reverb tail at the end, this should be called once after the last process call
     \param pfReverbTail (mono) should be a null pointer
-     \return Error_t
+    \return Error_t
     */
     Error_t flushBuffer(float*& pfReverbTail);
     
@@ -77,6 +77,8 @@ private:
      \return Error_t
      */
     Error_t processTimeDomain (float *pfInputBuffer, float *pfOutputBuffer, int iLengthOfBuffers);
+	Error_t processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOutputBuffer, int iLengthOfBuffers);
+
 };
 
 

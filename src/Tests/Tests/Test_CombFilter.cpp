@@ -3,6 +3,7 @@
 #ifdef WITH_TESTS
 #include <cassert>
 #include <cstdio>
+#include <algorithm>
 
 #include "UnitTest++.h"
 
