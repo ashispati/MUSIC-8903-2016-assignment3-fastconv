@@ -154,19 +154,12 @@ Error_t CFastConv::processTimeDomain(float *pfInputBuffer, float *pfOutputBuffer
 
 Error_t CFastConv::processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOutputBuffer, int iLengthOfBuffers)
 {
-	//Need to add function that zero pads the IR if it isn't an exact multiple of the block_length...or handle it some other way
-	//Current implementation assumes multiple of block_size
-
-	//Zero padding, won't really change the IR internally. Will only process the last block separately.
-	int pad_input = iLengthOfBuffers % _block_length;
-	int pad_ir = _length_of_ir % _block_length;
-
-	int num_ir_blocks = ceil(_length_of_ir / _block_length);
-	int num_input_blocks = ceil(iLengthOfBuffers / _block_length);
+	int num_ir_blocks = ceil(_length_of_ir / static_cast<float>(_block_length));
+	int num_input_blocks = ceil(iLengthOfBuffers / static_cast<float>(_block_length));
 
 	//Temp buffer for storing intermediate convolutions
-	float* temp_buffer = new float[iLengthOfBuffers + _block_length - 1];
-	//float* temp_buffer = new float[2 * _block_length - 1];
+	//float* temp_buffer = new float[iLengthOfBuffers + _block_length - 1];
+	float* temp_buffer = new float[2 * _block_length - 1];
 
 	//Temp reverb tail
 	float* temp_reverb = new float[iLengthOfBuffers + _length_of_ir - 1];
@@ -179,40 +172,44 @@ Error_t CFastConv::processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOut
 		_reverb_tail->putPostInc(0);
 	}
 	
-	//Process all IR blocks
-	for (int i = 0; i < num_ir_blocks; i++)
+	//Process all input blocks
+	for (int i_input = 0; i_input < num_input_blocks; i_input++)
 	{
-		memset(temp_buffer, 0, sizeof(float)*(iLengthOfBuffers + _block_length - 1));
-		for (int j = 0; j < iLengthOfBuffers + _block_length -1; j++)
+		//Process all IR blocks
+		for (int i = 0; i < num_ir_blocks; i++)
 		{
-			for (int k = 0; k <= j ; k++)
+			memset(temp_buffer, 0, sizeof(float)*(2 * _block_length - 1));
+			for (int j = 0; j < 2 * _block_length - 1; j++)
 			{
-				if(k<_block_length && (j-k) < iLengthOfBuffers)
-					temp_buffer[j] += pfInputBuffer[j - k] * _impulse_response[k + i*_block_length];
+				for (int k = 0; k <= j; k++)
+				{
+					if (k < _block_length && (j - k) < _block_length)
+					{
+						//check for last block and if index exceeds the length of the IR
+						float ir_val = (k + i*_block_length >= _length_of_ir) ? 0 : _impulse_response[k + i*_block_length];
+						
+						//check for last block and if index exceeds length of input buffer
+						float input_val = (j - k + i_input*_block_length >= iLengthOfBuffers) ? 0 : pfInputBuffer[j - k + i_input*_block_length];
+						//in case of fft based convolution, possibly using temporary buffers would make sense.
+						
+						//temp_buffer[j] += pfInputBuffer[j - k + i_input*_block_length] * _impulse_response[k + i*_block_length];
+						temp_buffer[j] += input_val * ir_val;
+					}
+				}
+			}
+			//add from temp_buffer to outputbuffer and reverb_tail
+			for (int j = 0, k = std::max(0, _block_length*i - iLengthOfBuffers); j < 2 * _block_length - 1 && k < _length_of_ir - 1; j++)
+			{
+				if (j + i*_block_length < iLengthOfBuffers)
+					pfOutputBuffer[j + i*_block_length] += temp_buffer[j];
+				else
+				{
+					temp_reverb[k] += temp_buffer[j];
+					k++;
+				}
 			}
 		}
-
-
-		//add from temp_buffer to outputbuffer
-		for (int j = 0; j < std::min(iLengthOfBuffers, iLengthOfBuffers - i*_block_length); j++)
-		{
-			pfOutputBuffer[j + i*_block_length] += temp_buffer[j];
-		}
-		
-		//add the rest to the reverb_tail
-		//Temp reverb tail improves time complexity, worsens space complexity though
-		for (int j = std::max(0, iLengthOfBuffers - i*_block_length), k = std::max(0, i*_block_length - iLengthOfBuffers); (j < iLengthOfBuffers + _block_length - 1) && (k < _length_of_ir - 1); j++, k++)
-		{
-			temp_reverb[k] += temp_buffer[j];
-			//cout << temp_reverb[k] << "\t" << temp_buffer[j] << endl;
-		}
 	}
-
-	/*for (int i = 0; i < iLengthOfBuffers; i++)
-	{
-		cout << pfOutputBuffer[i] << "\t";
-	}
-	cout << endl;*/
 	//add temporary reverb buffer to member
 	for (int i = 0; i < _length_of_ir - 1; i++)
 	{
@@ -221,7 +218,6 @@ Error_t CFastConv::processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOut
 		_reverb_tail->putPostInc(value);
 		//cout << value << endl;
 	}
-
 	
 	delete[] temp_buffer;
 	delete[] temp_reverb;

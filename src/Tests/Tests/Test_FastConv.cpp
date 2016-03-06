@@ -25,7 +25,7 @@ SUITE(FastConv)
             blockLength(1897),
             lengthOfIr(105),
             impulseResponse(0),
-            convBlockLength(35)
+            convBlockLength(32)
         {
             CFastConv::create(m_pCFastConv);
             
