@@ -132,7 +132,7 @@ SUITE(FastConv)
         resetIOData();
     }
     
-    /*TEST_FIXTURE(FastConvData, InputBlockLengthTest)
+    TEST_FIXTURE(FastConvData, InputBlockLengthTest)
     {
         int blockSizes[] = {1023, 1023, 13, 17, 13, 17, 1023};
         int numBlockSizes = 7;
@@ -176,7 +176,7 @@ SUITE(FastConv)
             resetIOData();
             
         }
-    }*/
+    }
 }
 
 #endif //WITH_TESTS
