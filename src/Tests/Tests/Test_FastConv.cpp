@@ -132,11 +132,10 @@ SUITE(FastConv)
         resetIOData();
     }
     
-    /*
     TEST_FIXTURE(FastConvData, InputBlockLengthTest)
     {
-        int blockSizes[] = {1023, 1023, 13, 17, 13, 17, 1023};
-        int numBlockSizes = 7;
+        int blockSizes[] = {1, 13, 1023, 2048,1,17, 5000, 1897};
+        int numBlockSizes = 8;
         
         for (int i = 0; i < numBlockSizes; i++)
         {
@@ -178,7 +177,6 @@ SUITE(FastConv)
             
         }
     }
-    */
 }
 
 #endif //WITH_TESTS

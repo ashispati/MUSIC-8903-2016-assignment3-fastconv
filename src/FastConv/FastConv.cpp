@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <iomanip>
 
 #include "Vector.h"
 #include "Util.h"
@@ -118,10 +119,6 @@ Error_t CFastConv::processTimeDomain(float *pfInputBuffer, float *pfOutputBuffer
     {
         pfOutputBuffer[i] = _reverb_tail->getPostInc();
         _reverb_tail->putPostInc(0);
-        if (i == 50) {
-            std::cout << pfOutputBuffer[i] << std::endl;
-        }
-        
     }
     
     //compute convolution for the process buffer length
@@ -276,40 +273,30 @@ Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffe
             //initialize temp variables
             memset(temp_buffer, 0, sizeof(float)*(2 * _block_length));
             
-            CFft* input_block;
-            CFft::create(input_block);
-            input_block->init(_block_length,2,CFft::WindowFunction_t::kWindowNone);
-            
-            CFft* ir_block;
-            CFft::create(ir_block);
-            ir_block->init(_block_length,2,CFft::WindowFunction_t::kWindowNone);
+            CFft* fft;
+            CFft::create(fft);
+            fft->init(_block_length,2,CFft::WindowFunction_t::kWindowNone, CFft::Windowing_t::kNoWindow);
             
             CFft::complex_t* input_block_fft = new CFft::complex_t[2*_block_length];
             CFft::complex_t* ir_block_fft = new CFft::complex_t[2*_block_length];
             
             //perform FFT based convolution
             float* input_block_tmp = &input_buffer[i_input * _block_length];
-            input_block->doFft(input_block_fft, input_block_tmp);
+            fft->doFft(input_block_fft, input_block_tmp);
             float* ir_block_tmp = &ir_buffer[i_ir * _block_length];
-            ir_block->doFft(ir_block_fft, ir_block_tmp);
+            fft->doFft(ir_block_fft, ir_block_tmp);
             
-            input_block->mulCompSpectrum(input_block_fft, ir_block_fft);
-            input_block->doInvFft(temp_buffer, input_block_fft);
-            
-            for (int i = 0; i < 2*_block_length; i++ ) {
-                cout << temp_buffer[i] << endl;
-            }
-            
-            //handle length of convolutions for last blocks
-            
-            CFft::destroy(input_block);
-            CFft::destroy(ir_block);
+            fft->mulCompSpectrum(input_block_fft, ir_block_fft);
+            fft->doInvFft(temp_buffer, input_block_fft);
+
+            CFft::destroy(fft);
+            CFft::destroy(fft);
             
             //add from temp_buffer to outputbuffer and reverb_tail
             for (int j = 0, k = std::max(0, _block_length*i_ir - iLengthOfBuffers); j < 2 * _block_length - 1 && k < _length_of_ir - 1; j++)
             {
                 if (j + i_ir*_block_length < iLengthOfBuffers)
-                    pfOutputBuffer[j + i_ir*_block_length] += temp_buffer[j];
+                    pfOutputBuffer[j + i_ir*_block_length] += temp_buffer[j] * 2 * _block_length;
                 else
                 {
                     temp_reverb[k] += temp_buffer[j];
@@ -329,11 +316,12 @@ Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffe
         _reverb_tail->putPostInc(value);
         //cout << value << endl;
     }
-    
+    /*
     for (int i = 0; i < iLengthOfBuffers; i++) {
-        //cout << pfOutputBuffer[i] << endl;
+        cout << pfOutputBuffer[i] << " ";
     }
-    
+    cout << endl;
+    */
     delete[] temp_buffer;
     delete[] temp_reverb;
     delete[] input_buffer;
