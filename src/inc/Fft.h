@@ -11,7 +11,7 @@ public:
     /*! defines the window function to use -- a custom window can also be used (\sa overrideWindow) */
     enum WindowFunction_t
     {
-        //kWindowNone,            //!< rectangular window (see Windowing_t::kNoWindow)
+        kWindowNone,            //!< rectangular window (see Windowing_t::kNoWindow)
         kWindowSine,            //!< sinusoidal window
         kWindowHann,            //!< von-Hann window
         kWindowHamming,         //!< Hamming window

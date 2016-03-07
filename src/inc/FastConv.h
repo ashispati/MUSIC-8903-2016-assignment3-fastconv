@@ -78,6 +78,8 @@ private:
      */
     Error_t processTimeDomain (float *pfInputBuffer, float *pfOutputBuffer, int iLengthOfBuffers);
 	Error_t processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOutputBuffer, int iLengthOfBuffers);
+    Error_t processFreqDomain (float *pfInputBuffer, float *pfOutputBuffer, int iLengthOfBuffers);
+    
 
 };
 
