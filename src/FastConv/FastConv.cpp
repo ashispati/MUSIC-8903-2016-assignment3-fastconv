@@ -234,7 +234,7 @@ Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffe
     float* ir_buffer = new float [num_ir_blocks * _block_length];
     for (int i = 0; i < num_input_blocks * _block_length; i++) {
         if (i < iLengthOfBuffers) {
-            input_buffer[i] = pfInputBuffer[i];
+            input_buffer[i] = pfInputBuffer[i] * 2 * _block_length;
         }
         else {
             input_buffer[i] = 0;
@@ -296,7 +296,7 @@ Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffe
             for (int j = 0, k = std::max(0, _block_length*i_ir - iLengthOfBuffers); j < 2 * _block_length - 1 && k < _length_of_ir - 1; j++)
             {
                 if (j + i_ir*_block_length < iLengthOfBuffers)
-                    pfOutputBuffer[j + i_ir*_block_length] += temp_buffer[j] * 2 * _block_length;
+                    pfOutputBuffer[j + i_ir*_block_length] += temp_buffer[j];
                 else
                 {
                     temp_reverb[k] += temp_buffer[j];

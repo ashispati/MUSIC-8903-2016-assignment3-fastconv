@@ -4,12 +4,14 @@
 #include <cassert>
 #include <cstdio>
 #include <iostream>
+#include <iomanip>
 
 #include "UnitTest++.h"
-
 #include "Vector.h"
 
 #include "FastConv.h"
+
+using namespace std;
 
 SUITE(FastConv)
 {
@@ -21,11 +23,11 @@ SUITE(FastConv)
             outputData(0),
             inputTmp(0),
             outputTmp(0),
-            dataLength(125),
-            blockLength(1897),
-            lengthOfIr(105),
+            dataLength(8435),
+            blockLength(13),
+            lengthOfIr(11021),
             impulseResponse(0),
-            convBlockLength(32)
+            convBlockLength(4096)
         {
             CFastConv::create(m_pCFastConv);
             
@@ -34,8 +36,8 @@ SUITE(FastConv)
             impulseResponse = new float [lengthOfIr];
             
             for (int i = 0; i < lengthOfIr; i++) {
-                //impulseResponse[i] = static_cast<float>(rand())/RAND_MAX;
-                impulseResponse[i] = i;
+                impulseResponse[i] = static_cast<float>(rand())/RAND_MAX;
+                //impulseResponse[i] = i;
             }
             
             CVectorFloat::setZero(inputData, dataLength);
@@ -69,7 +71,6 @@ SUITE(FastConv)
             CHECK_EQUAL(lengthOfIr-1, sizeOfTail);
             outputTmp = &outputData[dataLength];
             m_pCFastConv->flushBuffer(outputTmp);
-            
         }
         
         void resetIOData()
@@ -97,7 +98,7 @@ SUITE(FastConv)
         int convBlockLength;
     };
 
-
+    
     TEST_FIXTURE(FastConvData, IrTest)
     {
         // initialise fast conv
@@ -177,6 +178,7 @@ SUITE(FastConv)
             
         }
     }
+    
 }
 
 #endif //WITH_TESTS
