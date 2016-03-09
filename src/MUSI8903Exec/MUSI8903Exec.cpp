@@ -1,115 +1,171 @@
 
 #include <iostream>
+#include <string>
 #include <ctime>
 
 #include "MUSI8903Config.h"
 
 #include "AudioFileIf.h"
+#include "FastConv.h"
 
-using std::cout;
-using std::endl;
+using namespace std;
 
 // local function declarations
-void    showClInfo ();
+void    showClInfo();
 
 /////////////////////////////////////////////////////////////////////////////////
 // main function
 int main(int argc, char* argv[])
 {
-    std::string             sInputFilePath,                 //!< file paths
-                            sOutputFilePath;
+	std::string             sInputFilePath,                 //!< file paths
+		sIRFilePath,
+		sOutputFilePath;
 
-    static const int        kBlockSize          = 1024;
+	static const int        kBlockSize = 1024;
 
-    clock_t                 time                = 0;
+	clock_t                 time = 0;
 
-    float                   **ppfAudioData      = 0;
+	float                   **ppfInputAudioData = 0,
+		**ppfIRData = 0,
+		**ppfOutputAudioData = 0;
 
-    CAudioFileIf            *phAudioFile        = 0;
-    std::fstream            hOutputFile;
-    CAudioFileIf::FileSpec_t stFileSpec;
+	CAudioFileIf            *phAudioFile = 0;
+	std::fstream            hOutputFile;
+	CAudioFileIf::FileSpec_t stFileSpec;
 
-    showClInfo ();
+	long long				fftBlockSize = 0,
+		iLengthIR = 0,
+		iLengthInput = 0;
 
-    //////////////////////////////////////////////////////////////////////////////
-    // parse command line arguments
-    if (argc < 2)
-    {
-        return -1;
-    }
-    else
-    {
-        sInputFilePath  = argv[1];
-        sOutputFilePath = sInputFilePath + ".txt";
-    }
+	CFastConv				*pFastConv = 0;
+	double					dLengthSeconds = 0;
 
-    //////////////////////////////////////////////////////////////////////////////
-    // open the input wave file
-    CAudioFileIf::create(phAudioFile);
-    phAudioFile->openFile(sInputFilePath, CAudioFileIf::kFileRead);
-    if (!phAudioFile->isOpen())
-    {
-        cout << "Wave file open error!";
-        return -1;
-    }
-    phAudioFile->getFileSpec(stFileSpec);
+	showClInfo();
 
-    //////////////////////////////////////////////////////////////////////////////
-    // open the output text file
-    hOutputFile.open (sOutputFilePath.c_str(), std::ios::out);
-    if (!hOutputFile.is_open())
-    {
-        cout << "Text file open error!";
-        return -1;
-    }
+	//////////////////////////////////////////////////////////////////////////////
+	// parse command line arguments
+	try
+	{
+		switch (argc)
+		{
+		case 1: cout << "Too few arguments. Enter Audio file path and IR file path." << endl;
+			exit(0);
+			break;
+		case 2: cout << "Too few arguments. Enter IR file path also." << endl;
+			exit(0);
+		case 3: sInputFilePath = argv[1];
+			sIRFilePath = argv[2];
+			break;
+		case 4: sInputFilePath = argv[1];
+			sIRFilePath = argv[2];
+			fftBlockSize = stof(argv[3]);
+			break;
+		default: cout << "Too many parameters. Check what you're entering." << endl;
+			exit(0);
+		}
+	}
+	catch (exception &exc)
+	{
+		cerr << "Invalid arguments passed. Please use the correct formatting for running the program." << endl;
+	}
 
-    //////////////////////////////////////////////////////////////////////////////
-    // allocate memory
-    ppfAudioData            = new float* [stFileSpec.iNumChannels];
-    for (int i = 0; i < stFileSpec.iNumChannels; i++)
-        ppfAudioData[i] = new float [kBlockSize];
+	//////////////////////////////////////////////////////////////////////////////
+	// Read the input IR file
+	CAudioFileIf::create(phAudioFile);
+	phAudioFile->openFile(sIRFilePath, CAudioFileIf::kFileRead);
+	if (!phAudioFile->isOpen())
+	{
+		cout << "IR file open error!";
+		return -1;
+	}
+	phAudioFile->getFileSpec(stFileSpec);
+	ppfIRData = new float*[1];
+	phAudioFile->getLength(dLengthSeconds);
+	iLengthIR = stFileSpec.fSampleRateInHz * dLengthSeconds;
+	ppfIRData[0] = new float[iLengthIR];
+	phAudioFile->readData(ppfIRData, iLengthIR);
 
-    time                    = clock();
-    //////////////////////////////////////////////////////////////////////////////
-    // get audio data and write it to the output file
-    while (!phAudioFile->isEof())
-    {
-        long long iNumFrames = kBlockSize;
-        phAudioFile->readData(ppfAudioData, iNumFrames);
+	//////////////////////////////////////////////////////////////////////////////
+	// Initialize Fast Convolution object
 
-        for (int i = 0; i < iNumFrames; i++)
-        {
-            for (int c = 0; c < stFileSpec.iNumChannels; c++)
-            {
-                hOutputFile << ppfAudioData[c][i] << "\t";
-            }
-            hOutputFile << endl;
-        }
-    }
+	CFastConv::create(pFastConv);
+	pFastConv->init(ppfIRData[0], phAudioFile->getLength, fftBlockSize);
+	phAudioFile->reset();
 
-    cout << "reading/writing done in: \t"    << (clock()-time)*1.F/CLOCKS_PER_SEC << " seconds." << endl;
+	//////////////////////////////////////////////////////////////////////////////
+	// open the output text file
+	hOutputFile.open(sOutputFilePath.c_str(), std::ios::out);
+	if (!hOutputFile.is_open())
+	{
+		cout << "Text file open error!";
+		return -1;
+	}
 
-    //////////////////////////////////////////////////////////////////////////////
-    // clean-up
-    CAudioFileIf::destroy(phAudioFile);
-    hOutputFile.close();
+	//////////////////////////////////////////////////////////////////////////////
+	// get audio data and process it
+	phAudioFile->openFile(sInputFilePath, CAudioFileIf::kFileRead);
+	if (!phAudioFile->isOpen())
+	{
+		cout << "IR file open error!";
+		return -1;
+	}
+	phAudioFile->getFileSpec(stFileSpec);
+	phAudioFile->getLength(dLengthSeconds);
+	iLengthInput = dLengthSeconds * stFileSpec.fSampleRateInHz;
 
-    for (int i = 0; i < stFileSpec.iNumChannels; i++)
-        delete [] ppfAudioData[i];
-    delete [] ppfAudioData;
-    ppfAudioData = 0;
+	ppfOutputAudioData = new float*[1];
+	ppfOutputAudioData[0] = new float[iLengthInput + iLengthIR - 1];
 
-    return 0;
-    
+	//////////////////////////////////////////////////////////////////////////////
+	// allocate memory for input file
+	ppfInputAudioData = new float*[1];
+	ppfInputAudioData[0] = new float[kBlockSize];
+
+	time = clock();
+
+	int blockcounter = -1;
+	while (!phAudioFile->isEof())
+	{
+		blockcounter++;
+		long long iNumFrames = kBlockSize;
+		phAudioFile->readData(ppfInputAudioData, iNumFrames);
+		pFastConv->process(ppfInputAudioData[0], &ppfOutputAudioData[0][blockcounter*iNumFrames], iNumFrames);
+
+
+		// Handle two separate convolution function calls with same block?? Or store input data in buffer and then process?
+		for (int i = 0; i < iNumFrames; i++)
+		{
+			for (int c = 0; c < stFileSpec.iNumChannels; c++)
+			{
+				hOutputFile << ppfInputAudioData[c][i] << "\t";
+			}
+			hOutputFile << endl;
+		}
+	}
+
+	cout << "reading/writing done in: \t" << (clock() - time)*1.F / CLOCKS_PER_SEC << " seconds." << endl;
+
+	//////////////////////////////////////////////////////////////////////////////
+	// clean-up
+	CAudioFileIf::destroy(phAudioFile);
+	hOutputFile.close();
+
+	for (int i = 0; i < stFileSpec.iNumChannels; i++)
+		delete[] ppfInputAudioData[i];
+	delete[] ppfInputAudioData;
+	ppfInputAudioData = 0;
+
+	return 0;
+
 }
 
 
 void     showClInfo()
 {
-    cout << "GTCMT MUSI8903" << endl;
-    cout << "(c) 2016 by Alexander Lerch" << endl;
-    cout  << endl;
+	cout << "GTCMT MUSI8903" << endl;
+	cout << "(c) 2016 by Alexander Lerch" << endl;
+	cout << endl;
 
-    return;
+	return;
 }
 
