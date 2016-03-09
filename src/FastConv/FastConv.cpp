@@ -50,8 +50,15 @@ Error_t CFastConv::init(float *pfImpulseResponse, int iLengthOfIr, int iBlockLen
 {
     reset();
     
-    _block_length = iBlockLength;
     _length_of_ir = iLengthOfIr;
+    
+    //checks if the the input block length is a power of 2, otherwise selects the next power of 2
+    if (CUtil::isPowOf2(iBlockLength)) {
+        _block_length = iBlockLength;
+    }
+    else {
+        _block_length = CUtil::nextPowOf2(iBlockLength);
+    }
     
     _impulse_response = new float[_length_of_ir];
     for (int i = 0; i < _length_of_ir; i++)
