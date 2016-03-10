@@ -60,6 +60,7 @@ Error_t CFastConv::init(float *pfImpulseResponse, int iLengthOfIr, int iBlockLen
         _block_length = CUtil::nextPowOf2(iBlockLength);
     }
     
+    //set impulse response
     _impulse_response = new float[_length_of_ir];
     for (int i = 0; i < _length_of_ir; i++)
     {
@@ -67,9 +68,7 @@ Error_t CFastConv::init(float *pfImpulseResponse, int iLengthOfIr, int iBlockLen
     }
     
     _reverb_tail = new CRingBuffer<float>(_length_of_ir - 1);
-    
     _is_initialized = true;
-
     return kNoError;
 }
 
@@ -160,18 +159,18 @@ Error_t CFastConv::processTimeDomain(float *pfInputBuffer, float *pfOutputBuffer
 
 Error_t CFastConv::processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOutputBuffer, int iLengthOfBuffers)
 {
+    //Calculate number of blocks into which the IR and input buffer is to be divided
 	int num_ir_blocks = ceil(_length_of_ir / static_cast<float>(_block_length));
 	int num_input_blocks = ceil(iLengthOfBuffers / static_cast<float>(_block_length));
 
 	//Temp buffer for storing intermediate convolutions
-	//float* temp_buffer = new float[iLengthOfBuffers + _block_length - 1];
 	float* temp_buffer = new float[2 * _block_length - 1];
 
 	//Temp reverb tail
 	float* temp_reverb = new float[iLengthOfBuffers + _length_of_ir - 1];
 	memset(temp_reverb, 0, sizeof(float)*(iLengthOfBuffers + _length_of_ir - 1));
 
-	//add back previous reverb tail
+	//Add back previous reverb tail
 	for (int i = 0; i < std::min(_length_of_ir - 1, iLengthOfBuffers); i++)
 	{
 		pfOutputBuffer[i] = _reverb_tail->getPostInc();
@@ -196,9 +195,7 @@ Error_t CFastConv::processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOut
 						
 						//check for last block and if index exceeds length of input buffer
 						float input_val = (j - k + i_input*_block_length >= iLengthOfBuffers) ? 0 : pfInputBuffer[j - k + i_input*_block_length];
-						//in case of fft based convolution, possibly using temporary buffers would make sense.
-						
-						//temp_buffer[j] += pfInputBuffer[j - k + i_input*_block_length] * _impulse_response[k + i*_block_length];
+                
 						temp_buffer[j] += input_val * ir_val;
 					}
 				}
@@ -222,7 +219,6 @@ Error_t CFastConv::processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOut
 		float value = _reverb_tail->getPostInc();
 		value += temp_reverb[i];
 		_reverb_tail->putPostInc(value);
-		//cout << value << endl;
 	}
 	
 	delete[] temp_buffer;
@@ -232,9 +228,16 @@ Error_t CFastConv::processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOut
 
 Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffer, int iLengthOfBuffers) {
     
-    //Calculate number of blocks for impulse response and input buffer
+    //Calculate number of blocks into which the IR and input buffer is to be divided
     int num_ir_blocks = ceil(_length_of_ir / static_cast<float>(_block_length));
     int num_input_blocks = ceil(iLengthOfBuffers / static_cast<float>(_block_length));
+    
+    //Temp buffer for storing intermediate convolutions
+    float* temp_buffer = new float[2 * _block_length];
+    
+    //Temp reverb tail
+    float* temp_reverb = new float[iLengthOfBuffers + _length_of_ir - 1];
+    memset(temp_reverb, 0, sizeof(float)*(iLengthOfBuffers + _length_of_ir - 1));
     
     //Zero pad impulse response and input buffer
     float* input_buffer = new float [num_input_blocks * _block_length];
@@ -256,15 +259,7 @@ Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffe
         }
     }
     
-    
-    //Temp buffer for storing intermediate convolutions
-    float* temp_buffer = new float[2 * _block_length];
-    
-    //Temp reverb tail
-    float* temp_reverb = new float[iLengthOfBuffers + _length_of_ir - 1];
-    memset(temp_reverb, 0, sizeof(float)*(iLengthOfBuffers + _length_of_ir - 1));
-    
-    //add back previous reverb tail
+    //Add back previous reverb tail to output
     for (int i = 0; i < std::min(_length_of_ir - 1, iLengthOfBuffers); i++)
     {
         pfOutputBuffer[i] = _reverb_tail->getPostInc();
@@ -277,17 +272,16 @@ Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffe
         //Process all IR blocks
         for (int i_ir = 0; i_ir < num_ir_blocks; i_ir++)
         {
-            //initialize temp variables
+            //Initialize temp variables
             memset(temp_buffer, 0, sizeof(float)*(2 * _block_length));
-            
+            CFft::complex_t* input_block_fft = new CFft::complex_t[2*_block_length];
+            CFft::complex_t* ir_block_fft = new CFft::complex_t[2*_block_length];
             CFft* fft;
             CFft::create(fft);
             fft->init(_block_length,2,CFft::WindowFunction_t::kWindowNone, CFft::Windowing_t::kNoWindow);
+           
             
-            CFft::complex_t* input_block_fft = new CFft::complex_t[2*_block_length];
-            CFft::complex_t* ir_block_fft = new CFft::complex_t[2*_block_length];
-            
-            //perform FFT based convolution
+            //Perform FFT based convolution
             float* input_block_tmp = &input_buffer[i_input * _block_length];
             fft->doFft(input_block_fft, input_block_tmp);
             float* ir_block_tmp = &ir_buffer[i_ir * _block_length];
@@ -296,10 +290,10 @@ Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffe
             fft->mulCompSpectrum(input_block_fft, ir_block_fft);
             fft->doInvFft(temp_buffer, input_block_fft);
 
-            CFft::destroy(fft);
+            //Free memory
             CFft::destroy(fft);
             
-            //add from temp_buffer to outputbuffer and reverb_tail
+            //Add from temp_buffer to outputbuffer and reverb_tail
             for (int j = 0, k = std::max(0, _block_length*i_ir - iLengthOfBuffers); j < 2 * _block_length - 1 && k < _length_of_ir - 1; j++)
             {
                 if (j + i_ir*_block_length < iLengthOfBuffers)
@@ -311,24 +305,20 @@ Error_t CFastConv::processFreqDomain (float *pfInputBuffer, float *pfOutputBuffe
                 }
             }
         
+            //Free memory
             delete[] input_block_fft;
             delete[] ir_block_fft;
         }
     }
-    //add temporary reverb tail buffer to member
+    //Add temporary reverb tail buffer to member
     for (int i = 0; i < _length_of_ir - 1; i++)
     {
         float value = _reverb_tail->getPostInc();
         value += temp_reverb[i];
         _reverb_tail->putPostInc(value);
-        //cout << value << endl;
     }
-    /*
-    for (int i = 0; i < iLengthOfBuffers; i++) {
-        cout << pfOutputBuffer[i] << " ";
-    }
-    cout << endl;
-    */
+
+    //Free memory
     delete[] temp_buffer;
     delete[] temp_reverb;
     delete[] input_buffer;

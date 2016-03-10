@@ -13,7 +13,7 @@
 
 using namespace std;
 
-SUITE(FastConv)
+SUITE(FastConv_Test)
 {
     struct FastConvData
     {
@@ -132,7 +132,7 @@ SUITE(FastConv)
         
         resetIOData();
     }
-    /*
+    
     TEST_FIXTURE(FastConvData, InputBlockLengthTest)
     {
         int blockSizes[] = {1, 13, 1023, 2048,1,17, 5000, 1897};
@@ -178,7 +178,7 @@ SUITE(FastConv)
             
         }
     }
-    */
+    
 }
 
 #endif //WITH_TESTS

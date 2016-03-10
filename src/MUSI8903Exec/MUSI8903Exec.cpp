@@ -26,16 +26,16 @@ int main(int argc, char* argv[])
 	clock_t                 time = 0;
 
 	float                   **ppfInputAudioData = 0,
-		**ppfIRData = 0,
-		**ppfOutputAudioData = 0;
+                            **ppfIRData = 0,
+                            **ppfOutputAudioData = 0;
 
 	CAudioFileIf            *phAudioFile = 0;
-	std::fstream            hOutputFile;
 	CAudioFileIf::FileSpec_t stFileSpec;
-
+    std::ofstream           outfile;
+    outfile.precision(15);
 	long long				fftBlockSize = 8192,
-		iLengthIR = 0,
-		iLengthInput = 0;
+                            iLengthIR = 0,
+                            iLengthInput = 0;
 
 	CFastConv				*pFastConv = 0;
 	double					dLengthSeconds = 0;
@@ -68,6 +68,15 @@ int main(int argc, char* argv[])
 	{
 		cerr << "Invalid arguments passed. Please use the correct formatting for running the program." << endl;
 	}
+    
+    // open the output text file
+    sOutputFilePath = sInputFilePath + "output.txt";
+    outfile.open (sOutputFilePath.c_str(), std::ios::out);
+    if (!outfile.is_open())
+    {
+        cout << "Output file open error!";
+        return -1;
+    }
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Read the input IR file
@@ -91,17 +100,6 @@ int main(int argc, char* argv[])
 	CFastConv::create(pFastConv);
 	pFastConv->init(ppfIRData[0],iLengthIR, fftBlockSize);
 	phAudioFile->reset();
-
-	//////////////////////////////////////////////////////////////////////////////
-	// open the output text file
-	/*
-    hOutputFile.open(sOutputFilePath.c_str(), std::ios::out);
-	if (!hOutputFile.is_open())
-	{
-		cout << "Text file open error!";
-		return -1;
-	}
-    */
     
 	//////////////////////////////////////////////////////////////////////////////
 	// get audio data and process it
@@ -133,32 +131,31 @@ int main(int argc, char* argv[])
 		long long iNumFrames = kBlockSize;
 		phAudioFile->readData(ppfInputAudioData, iNumFrames);
 		pFastConv->process(ppfInputAudioData[0], ppfOutputAudioData[0], iNumFrames);
-
-        
-		// Handle two separate convolution function calls with same block?? Or store input data in buffer and then process?
-		/*for (int i = 0; i < iNumFrames; i++)
-		{
-			for (int c = 0; c < stFileSpec.iNumChannels; c++)
-			{
-				hOutputFile << ppfInputAudioData[c][i] << "\t";
-			}
-			hOutputFile << endl;
-		}*/
+        // uncomment for writing to file
+        /*
+        for (int i = 0; i < iNumFrames; i++) {
+            outfile << ppfOutputAudioData[0][i] << endl;
+        }
+        */
 	}
     int sizeOfTail = 0;
     pFastConv->getSizeOfTail(sizeOfTail);
     float **ppfReverbTail = new float*[1];
     ppfReverbTail[0] = new float[sizeOfTail];
     pFastConv->flushBuffer(ppfReverbTail[0]);
-    
+    // uncomment for writing to file
+    /*
+    for (int i = 0; i < sizeOfTail; i++) {
+        outfile << ppfReverbTail[0][i] << endl;
+    }
+    */
 
 	cout << "Frequency Domain Convolution: \t" << (clock() - time)*1.F / CLOCKS_PER_SEC << " seconds." << endl;
-
+    
 	//////////////////////////////////////////////////////////////////////////////
 	// clean-up
 	CAudioFileIf::destroy(phAudioFile);
-	//hOutputFile.close();
-
+    outfile.close();
     delete[] ppfInputAudioData[0];
     delete[] ppfOutputAudioData[0];
     delete[] ppfReverbTail[0];

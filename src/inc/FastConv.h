@@ -77,7 +77,20 @@ private:
      \return Error_t
      */
     Error_t processTimeDomain (float *pfInputBuffer, float *pfOutputBuffer, int iLengthOfBuffers);
-	Error_t processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOutputBuffer, int iLengthOfBuffers);
+    
+    /*! computes blocked time domain convolution
+     \param pfInputBuffer (mono)
+     \param pfOutputBuffer (mono)
+     \param iLengthOfBuffers can be anything from 1 sample to 10000000 samples
+     \return Error_t
+     */
+    Error_t processTimeDomainBlockedIR(float* pfInputBuffer, float* pfOutputBuffer, int iLengthOfBuffers);
+    /*! computes FFT based fast convolution
+     \param pfInputBuffer (mono)
+     \param pfOutputBuffer (mono)
+     \param iLengthOfBuffers can be anything from 1 sample to 10000000 samples
+     \return Error_t
+     */
     Error_t processFreqDomain (float *pfInputBuffer, float *pfOutputBuffer, int iLengthOfBuffers);
     
 
