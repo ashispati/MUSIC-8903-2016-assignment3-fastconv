@@ -24,8 +24,8 @@ SUITE(FastConv_Test)
             inputTmp(0),
             outputTmp(0),
             dataLength(8435),
-            blockLength(1024),
-            lengthOfIr(11021),
+            blockLength(1023),
+            lengthOfIr(27),
             impulseResponse(0),
             convBlockLength(4090)
         {
@@ -37,7 +37,6 @@ SUITE(FastConv_Test)
             
             for (int i = 0; i < lengthOfIr; i++) {
                 impulseResponse[i] = static_cast<float>(rand())/RAND_MAX;
-                //impulseResponse[i] = i;
             }
             
             CVectorFloat::setZero(inputData, dataLength);
@@ -153,9 +152,7 @@ SUITE(FastConv_Test)
             int delay = 5;
             inputData[delay] = 1;
 
-            
-            TestProcess();
-           
+            TestProcess();           
             
             // check output
             for (int i = 0; i < dataLength + lengthOfIr - 1; i++)

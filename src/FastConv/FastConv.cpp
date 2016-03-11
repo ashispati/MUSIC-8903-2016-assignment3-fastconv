@@ -91,6 +91,9 @@ Error_t CFastConv::process (float *pfInputBuffer, float *pfOutputBuffer, int iLe
     if (!_is_initialized) {
         return kNotInitializedError;
     }
+    /*
+    Uncomment one of the three lines below to select the algorithm  
+    */
 	//processTimeDomainBlockedIR(pfInputBuffer, pfOutputBuffer, iLengthOfBuffers);
     //processTimeDomain(pfInputBuffer, pfOutputBuffer, iLengthOfBuffers);
     processFreqDomain(pfInputBuffer, pfOutputBuffer, iLengthOfBuffers);

@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
     }
     */
 
-	cout << "Frequency Domain Convolution: \t" << (clock() - time)*1.F / CLOCKS_PER_SEC << " seconds." << endl;
+	cout << "Convolution Time : \t" << (clock() - time)*1.F / CLOCKS_PER_SEC << " seconds." << endl;
     
 	//////////////////////////////////////////////////////////////////////////////
 	// clean-up
