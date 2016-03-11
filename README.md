@@ -26,3 +26,7 @@ To run the tests:
    \<TestExec binary> FastConv_Test
 
 Note that the above targets may also be run from within an IDE like Visual Studio or XCode.
+
+Q. How will you make it clear to the user what amount of memory to allocate for the output? Do you need an additional API function?
+
+A. We have specified in the API a function called getSizeOfTail that returns the length of the reverb tail for the user to allocate memory for that. Hence, the user simply needs to have an output buffer of equal length as the input data and then have a reverb tail buffer of length that he/she gets by calling this function.
